@@ -5,7 +5,104 @@ format: typst
 
 ### 2024 Election Results and the 2024 District Map
 
+```{r}
+head(cleaned_vr_dist_lvl)
 
+#mean - median
+dist_votes <- cleaned_vr_dist_lvl |>
+    filter(toupper(party) %in% c("DEM", "REP")) |>
+    group_by(district, party) |>
+    summarize(total_votes = sum(votes, na.rm = T)) |>
+    ungroup()
+
+dist_votes
+
+party_data <- dist_votes |>
+    pivot_wider(names_from = party, values_from = total_votes, values_fill = 0) |>
+    mutate(
+        dem = DEM / (DEM + REP),
+        rep = REP / (DEM + REP),
+        total_votes = DEM + REP
+    )
+
+mean_dem <- mean(party_data$dem, na.rm = T)
+median_dem <- median(party_data$dem, na.rm = T)
+
+mean_median <- mean_dem - median_dem 
+mean_median
+
+party_data
+
+#efficiency gap
+wasted <- party_data |>
+    mutate(winner = case_when(DEM > REP ~ "DEM", REP > DEM ~"REP", T ~ "TIE"),
+           dem_waste = case_when(
+               winner == "DEM" ~ DEM - (total_votes / 2),
+               winner == "REP" ~ DEM,
+               winner == "TIE" ~ DEM / 2,
+          ),
+           rep_waste = case_when(
+               winner == "REP" ~ DEM - (total_votes / 2),
+               winner == "DEM" ~ DEM,
+               winner == "TIE" ~ DEM / 2))
+
+wasted
+
+total_dem_wasted <- sum(wasted$dem_waste, na.rm = TRUE)
+total_rep_wasted <- sum(wasted$rep_waste, na.rm = TRUE)
+total_two_party_votes <- sum(wasted$total_votes, na.rm = TRUE)
+
+efficiency_gap <- (total_rep_wasted - total_dem_wasted) / total_two_party_votes
+efficiency_gap
+```
 
 ### 2024 Election Results and the proposed 2025 District Map
 
+```{r}
+head(cleaned_vr_dist_lvl)
+
+#mean - median
+dist_votes <- cleaned_vr_dist_lvl |>
+    filter(toupper(party) %in% c("DEM", "REP")) |>
+    group_by(district, party) |>
+    summarize(total_votes = sum(votes, na.rm = T)) |>
+    ungroup()
+
+dist_votes
+
+party_data <- dist_votes |>
+    pivot_wider(names_from = party, values_from = total_votes, values_fill = 0) |>
+    mutate(
+        dem = DEM / (DEM + REP),
+        rep = REP / (DEM + REP),
+        total_votes = DEM + REP
+    )
+
+mean_dem <- mean(party_data$dem, na.rm = T)
+median_dem <- median(party_data$dem, na.rm = T)
+
+mean_median <- mean_dem - median_dem 
+mean_median
+
+#efficiency gap
+wasted <- party_data |>
+    mutate(winner = case_when(DEM > REP ~ "DEM", REP > DEM ~"REP", T ~ "TIE"),
+           dem_waste = case_when(
+               winner == "DEM" ~ DEM - (total_votes / 2),
+               winner == "REP" ~ DEM,
+               winner == "TIE" ~ DEM / 2,
+          ),
+           rep_waste = case_when(
+               winner == "REP" ~ DEM - (total_votes / 2),
+               winner == "DEM" ~ DEM,
+               winner == "TIE" ~ DEM / 2))
+
+wasted
+
+total_dem_wasted <- sum(wasted$dem_waste, na.rm = TRUE)
+total_rep_wasted <- sum(wasted$rep_waste, na.rm = TRUE)
+total_two_party_votes <- sum(wasted$total_votes, na.rm = TRUE)
+
+efficiency_gap <- (total_rep_wasted - total_dem_wasted) / total_two_party_votes
+efficiency_gap
+```

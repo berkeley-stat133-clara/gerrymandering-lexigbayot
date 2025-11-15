@@ -3,3 +3,93 @@ title: Data Cleaning
 format: typst
 ---
 
+```{r}
+#Loading in the Data
+library(tidyverse)
+
+
+#Voting results (Statement of Vote) at the voting precinct level for the 2024 general election
+vr_precint_lvl_2024 <- read.csv("Documents/stat133/projects/gerrymandering-lexigbayot/data/g24_sov_by_g24_svprec.csv")
+
+#Voting results at the district level, broken down by county
+install.packages("readxl")
+library(readxl)
+vr_district_lvl_by_county <- read_excel("Documents/stat133/projects/gerrymandering-lexigbayot/data/g24-results-by-district.xlsx")
+
+#Names of candidates running in each district race
+candidate_names_by_district <- read.csv("Documents/stat133/projects/gerrymandering-lexigbayot/data/g24-candidates-by-district.csv")
+```
+
+```{r}
+#Cleaning vr_precint_lvl_2024
+
+head(vr_precint_lvl_2024)
+
+cleaned_vr_precint_lvl <- vr_precint_lvl_2024 |>
+    mutate(across(where(is.character), ~na_if(., "*"))) |>
+    mutate(across(matches("reg$|votes$|_y$|_n$|\\d+$"), as.numeric))
+
+cleaned_vr_precint_lvl <- cleaned_vr_precint_lvl |>
+    pivot_longer(
+        cols = matches("dem|rep|aip|grn|lib|nlp|ref|dcl|msc|ass|cng|prs|sen|usp|uss|pr_"),
+        names_to = "contest",
+        values_to = "votes"
+    ) |>
+    mutate(
+        contest = toupper(contest),
+        contest = str_replace_all(contest, "_", "")
+    )
+
+head(cleaned_vr_precint_lvl)
+```
+
+```{r}
+#Cleaning candidate_names_by_district
+
+head(candidate_names_by_district)
+
+colnames(candidate_names_by_district)
+
+cleaned_cand_names_by_dist <- candidate_names_by_district |>
+    mutate(cleaned_candidates = str_squish(str_to_lower(NAME))) |>
+    select(cleaned_candidates, DISTRICT)
+
+head(cleaned_cand_names_by_dist)
+```
+
+head(cleaned_cand_names_by_dist)
+
+```{r}
+#Cleaning vr_district_lvl_by_county
+
+head(vr_district_lvl_by_county)
+
+candidate_names <- vr_district_lvl_by_county[2, -1] |> as.character()
+candidate_names
+
+party <- vr_district_lvl_by_county[3, -1] |> as.character()
+party
+
+cleaned <- c("county", paste0(candidate_names, " (", party, ")"))
+
+raw_vr_dist_data <- vr_district_lvl_by_county[-c(1:3), ]
+names(raw_vr_dist_data) <- cleaned
+
+cleaned_vr_dist_lvl <- raw_vr_dist_data |>
+    mutate(county = as.character(county)) |>
+    pivot_longer(cols = -county, names_to = "party", values_to = "votes") |>
+    mutate(votes = as.integer(votes),
+           party = str_replace_all(party, "\\n", " ")) |>
+    separate(party, into = c("candidate", "party"), sep = "\\(", remove = FALSE) |>
+    mutate(party = str_replace(party, "\\)", ""))
+
+cleaned_vr_dist_lvl <- cleaned_vr_dist_lvl |>
+    mutate(cleaned_candidates = str_squish(str_to_lower(candidate))) |>
+    left_join(cleaned_cand_names_by_dist, by = "cleaned_candidates") |>
+    rename(district = DISTRICT)
+
+cleaned_vr_dist_lvl |>
+    select(candidate, party, district) |>
+    distinct() |>
+    head()
+```
